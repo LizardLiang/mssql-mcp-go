@@ -78,14 +78,17 @@ func handleDescribeTable(ctx context.Context, request mcp.CallToolRequest) (*mcp
 			c.max_length,
 			c.is_nullable,
 			c.is_identity,
-			CASE WHEN ic.column_id IS NOT NULL THEN 1 ELSE 0 END AS is_primary_key,
+			CASE WHEN EXISTS (
+				SELECT 1
+				FROM sys.indexes i
+				JOIN sys.index_columns ic ON ic.object_id = i.object_id AND ic.index_id = i.index_id
+				WHERE i.object_id = t.object_id AND i.is_primary_key = 1 AND ic.column_id = c.column_id
+			) THEN 1 ELSE 0 END AS is_primary_key,
 			dc.definition AS default_value
 		FROM sys.columns c
 		JOIN sys.types tp ON c.user_type_id = tp.user_type_id
 		JOIN sys.tables t ON c.object_id = t.object_id
 		JOIN sys.schemas s ON t.schema_id = s.schema_id
-		LEFT JOIN sys.indexes i ON i.object_id = t.object_id AND i.is_primary_key = 1
-		LEFT JOIN sys.index_columns ic ON ic.object_id = t.object_id AND ic.index_id = i.index_id AND ic.column_id = c.column_id
 		LEFT JOIN sys.default_constraints dc ON dc.parent_object_id = t.object_id AND dc.parent_column_id = c.column_id
 		WHERE t.name = @p1 AND s.name = @p2
 		ORDER BY c.column_id`
