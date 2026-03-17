@@ -14,7 +14,7 @@ func main() {
 	}
 	defer db.Close()
 
-	s := server.NewMCPServer("mssql-mcp", "1.0.0")
+	s := server.NewMCPServer("mssql-mcp", "1.1.0")
 	registerTools(s)
 
 	if err := server.ServeStdio(s); err != nil {

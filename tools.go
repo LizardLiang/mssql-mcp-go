@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/mark3labs/mcp-go/mcp"
@@ -140,7 +141,8 @@ func handleQuery(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToo
 	forbidden := []string{"INSERT", "UPDATE", "DELETE", "DROP", "ALTER", "CREATE", "TRUNCATE", "EXEC"}
 
 	for _, kw := range forbidden {
-		if strings.Contains(upper, kw) {
+		pattern := `\b` + kw + `\b`
+		if matched, _ := regexp.MatchString(pattern, upper); matched {
 			return mcp.NewToolResultError(fmt.Sprintf("forbidden keyword: %s", kw)), nil
 		}
 	}
