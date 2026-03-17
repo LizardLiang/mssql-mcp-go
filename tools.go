@@ -80,10 +80,9 @@ func handleDescribeTable(ctx context.Context, request mcp.CallToolRequest) (*mcp
 			c.is_nullable,
 			c.is_identity,
 			CASE WHEN EXISTS (
-				SELECT 1
-				FROM sys.indexes i
-				JOIN sys.index_columns ic ON ic.object_id = i.object_id AND ic.index_id = i.index_id
-				WHERE i.object_id = t.object_id AND i.is_primary_key = 1 AND ic.column_id = c.column_id
+				SELECT 1 FROM sys.index_columns ic
+				JOIN sys.indexes i ON ic.object_id = i.object_id AND ic.index_id = i.index_id
+				WHERE i.is_primary_key = 1 AND ic.object_id = c.object_id AND ic.column_id = c.column_id
 			) THEN 1 ELSE 0 END AS is_primary_key,
 			dc.definition AS default_value
 		FROM sys.columns c
