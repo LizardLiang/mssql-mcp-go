@@ -18,6 +18,22 @@ func getArgs(request mcp.CallToolRequest) map[string]interface{} {
 	return map[string]interface{}{}
 }
 
+// stripQuotedSegments removes bracket-quoted identifiers ([name]) and single-quoted
+// string literals ('value') from SQL so the forbidden-keyword scanner doesn't fire
+// on column names or data values that happen to spell out a keyword.
+var (
+	reBracketIdent  = regexp.MustCompile(`\[[^\]]*\]`)
+	reSingleQuoted  = regexp.MustCompile(`'[^']*(?:''[^']*)*'`)
+	reDoubleQuoted  = regexp.MustCompile(`"[^"]*(?:""[^"]*)*"`)
+)
+
+func stripQuotedSegments(sql string) string {
+	sql = reSingleQuoted.ReplaceAllString(sql, "''")
+	sql = reDoubleQuoted.ReplaceAllString(sql, `""`)
+	sql = reBracketIdent.ReplaceAllString(sql, "[x]")
+	return sql
+}
+
 func handleListTables(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	schema, _ := getArgs(request)["schema"].(string)
 
@@ -137,11 +153,16 @@ func handleQuery(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToo
 		return mcp.NewToolResultError("only SELECT and WITH queries are allowed"), nil
 	}
 
+	// Strip bracket-quoted identifiers ([delete], [update], etc.) and single-quoted
+	// string literals before scanning for forbidden keywords, so that column names
+	// and string values that happen to match a keyword don't produce false positives.
+	scanTarget := stripQuotedSegments(upper)
+
 	forbidden := []string{"INSERT", "UPDATE", "DELETE", "DROP", "ALTER", "CREATE", "TRUNCATE", "EXEC"}
 
 	for _, kw := range forbidden {
 		pattern := `\b` + kw + `\b`
-		if matched, _ := regexp.MatchString(pattern, upper); matched {
+		if matched, _ := regexp.MatchString(pattern, scanTarget); matched {
 			return mcp.NewToolResultError(fmt.Sprintf("forbidden keyword: %s", kw)), nil
 		}
 	}
