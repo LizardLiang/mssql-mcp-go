@@ -305,7 +305,7 @@ func handleDescribeProcedure(ctx context.Context, request mcp.CallToolRequest) (
 	return mcp.NewToolResultText(string(out)), nil
 }
 
-func registerTools(s *server.MCPServer) {
+func registerTools(s *server.MCPServer, cfg WriteConfig) {
 	s.AddTool(mcp.NewTool("list_tables",
 		mcp.WithDescription("List all tables in the database with schema name and row counts"),
 		mcp.WithString("schema", mcp.Description("Filter by schema name")),
@@ -332,4 +332,9 @@ func registerTools(s *server.MCPServer) {
 		mcp.WithString("procedure", mcp.Required(), mcp.Description("Procedure name")),
 		mcp.WithString("schema", mcp.Description("Schema name (default: dbo)")),
 	), handleDescribeProcedure)
+
+	// Conditionally register the write tool (FR-002)
+	if cfg.AllowWrite {
+		registerWriteTool(s, cfg)
+	}
 }
